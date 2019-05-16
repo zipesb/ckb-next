@@ -4,6 +4,7 @@
 #include "led.h"
 #include "profile.h"
 #include "stdint.h"
+#include "iconv_usb.h"
 
 // Percent-enconding conversions
 void urldecode2(char* dst, const char* src){
@@ -90,27 +91,6 @@ char* getid(usbid* id){
     snprintf(guid, 39, "{%08X-%04hX-%04hX-%04hX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}",
              data1, data2, data3, data4a, data4b[0], data4b[1], data4b[2], data4b[3], data4b[4], data4b[5]);
     return guid;
-}
-
-// UTF-8/UTF-16 conversions (srclen and dstlen in characters - 1 byte UTF8, 2 bytes UTF16)
-void u16enc(char* in, ushort* out, size_t* srclen, size_t* dstlen){
-    iconv_t utf8to16 = iconv_open("UTF-16LE", "UTF-8");
-    memset(out, 0, *dstlen * 2);
-    *dstlen = *dstlen * 2 - 2;
-    iconv(utf8to16, &in, srclen, (char**)&out, dstlen);
-    iconv_close(utf8to16);
-}
-
-void u16dec(ushort* in, char* out, size_t* srclen, size_t* dstlen){
-    iconv_t utf16to8 = iconv_open("UTF-8", "UTF-16LE");
-    size_t srclen2 = 0, srclenmax = *srclen;
-    for(; srclen2 < srclenmax; srclen2++){
-        if(!in[srclen2])
-            break;
-    }
-    *srclen = srclen2 * 2;
-    iconv(utf16to8, (char**)&in, srclen, &out, dstlen);
-    iconv_close(utf16to8);
 }
 
 void cmd_name(usbdevice* kb, usbmode* mode, int dummy1, int dummy2, const char* name){

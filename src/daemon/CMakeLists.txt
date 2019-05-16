@@ -70,6 +70,7 @@ if (MACOS OR LINUX)
               dpi.c
               dpi_legacy.c
               firmware.c
+              iconv_usb.c
               input.c
               keymap.c
               keymap_patch.c
@@ -89,6 +90,7 @@ if (MACOS OR LINUX)
               dpi.h
               dpi_legacy.h
               firmware.h
+              iconv_usb.h
               includes.h
               input.h
               input_mac_vhid.h
