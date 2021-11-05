@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include "command.h"
 #include "device.h"
 #include "devnode.h"
@@ -7,6 +8,7 @@
 #include "usb.h"
 #include "bragi_proto.h"
 #include "bragi_common.h"
+#include "led.h"
 
 // CUE polls devices every 52 seconds
 const struct timespec bragi_poll_delay = { .tv_sec = 50 };
@@ -80,15 +82,28 @@ static int setactive_bragi(usbdevice* kb, int active){
     // Check if the device returned an error
     // Non fatal for now. Should first figure out what the error codes mean.
     // Device returns 0x03 on writes if we haven't opened the handle.
+
+    // K100 returns 0x01, so it probably means "not supported"
+    // So we if we get that response, we instead try to open the alt rgb lighting resource
+    // If this also fails (due to other reasons), the code below should take care of it
+    bool alt_lighting = false;
+    if(response[2] == 0x01){
+        ckb_info("ckb%d: Bragi light init returned 0x01, attempting alternative RGB method", ckb_id);
+        light_init[3] = BRAGI_RES_ALT_LIGHTING;
+        if(!usbrecv(kb, light_init, sizeof(light_init), response))
+            return 1;
+        alt_lighting = true;
+    }
+
     if(response[2] != 0x00){
-        ckb_err("ckb%d: Bragi light init returned error 0x%hhx", ckb_id, response[2]);
+        ckb_info("ckb%d: Bragi light init returned error 0x%hhx", ckb_id, response[2]);
         // CUE seems to attempt to close and reopen the handle if it gets 0x03 on open
         if(response[2] == 0x03){
             uchar light_deinit[BRAGI_JUMBO_SIZE] = {BRAGI_MAGIC, BRAGI_CLOSE_HANDLE, 0x01, BRAGI_LIGHTING_HANDLE};
             if(!usbrecv(kb, light_deinit, sizeof(light_deinit), response))
                 return 1;
             if(response[2] != 0x00){
-                ckb_err("ckb%d: Close lighting handle failed with 0x%hhx", ckb_id, response[2]);
+                ckb_info("ckb%d: Close lighting handle failed with 0x%hhx", ckb_id, response[2]);
             }
             // Try to reopen it
             if(!usbrecv(kb, light_init, sizeof(light_init), response))
@@ -98,6 +113,10 @@ static int setactive_bragi(usbdevice* kb, int active){
             }
         }
     }
+
+    // Swap the RGB function if we're using alt lighting
+    if(alt_lighting)
+        kb->vtable.updatergb = updatergb_keyboard_bragi_alt;
 
     return 0;
 }
