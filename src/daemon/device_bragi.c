@@ -114,9 +114,36 @@ static int setactive_bragi(usbdevice* kb, int active){
         }
     }
 
-    // Swap the RGB function if we're using alt lighting
-    if(alt_lighting)
+    // Do the same as above and open the second handle if we're using alt_lighting
+    if(alt_lighting){
+        light_init[2] = BRAGI_2ND_LIGHTING_HANDLE;
+        light_init[3] = BRAGI_RES_LIGHTING_EXTRA;
+
+        if(!usbrecv(kb, light_init, sizeof(light_init), response))
+            return 1;
+
+        if(response[2] != 0x00){
+            ckb_info("ckb%d: Bragi 2nd light init returned error 0x%hhx", ckb_id, response[2]);
+            // CUE seems to attempt to close and reopen the handle if it gets 0x03 on open
+            if(response[2] == 0x03){
+                uchar light_deinit[BRAGI_JUMBO_SIZE] = {BRAGI_MAGIC, BRAGI_CLOSE_HANDLE, 0x01, BRAGI_2ND_LIGHTING_HANDLE};
+                if(!usbrecv(kb, light_deinit, sizeof(light_deinit), response))
+                    return 1;
+                if(response[2] != 0x00){
+                    ckb_info("ckb%d: Close lighting handle failed with 0x%hhx", ckb_id, response[2]);
+                }
+                // Try to reopen it
+                if(!usbrecv(kb, light_init, sizeof(light_init), response))
+                    return 1;
+                if(response[2] != 0x00){
+                    ckb_err("ckb%d: Bragi 2nd light init (attempt 2) returned error 0x%hhx", ckb_id, response[2]);
+                }
+            }
+        }
+
+        // Swap the RGB function if we're using alt lighting
         kb->vtable.updatergb = updatergb_keyboard_bragi_alt;
+    }
 
     return 0;
 }
