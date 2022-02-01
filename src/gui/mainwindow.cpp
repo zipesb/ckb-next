@@ -260,7 +260,12 @@ void MainWindow::addDevice(Kb* device){
     }
     // Add the keyboard
     KbWidget* widget = new KbWidget(this, device, windowDetector);
-    kbWidgets.append(widget);
+    for(int i = 0; i < kbWidgets.size(); i++){
+        if(kbWidgets.at(i)->name() > widget->name()){
+            kbWidgets.insert(i, widget);
+            break;
+        }
+    }
     // Add to tabber; switch to this device if the user is on the settings screen
     int count = ui->tabWidget->count();
     ui->tabWidget->insertTab(count - 1, widget, widget->name());
